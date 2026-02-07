@@ -33,7 +33,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [sessionSavings, setSessionSavings] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [newIngredientName, setNewIngredientName] = useState('');
@@ -235,6 +234,19 @@ const App: React.FC = () => {
     setState(prev => ({
       ...prev,
       scannedIngredients: prev.scannedIngredients.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const finishCooking = () => {
+    if (!state.currentRecipe) return;
+    
+    // BUG FIX #1: Add savings to cumulative total
+    const savings = state.selectedMode === 'HACK' ? (state.currentRecipe.savings_dh || 5) : 5;
+    
+    setState(prev => ({
+      ...prev,
+      wasteSaved: prev.wasteSaved + savings,
+      screen: AppScreen.SUCCESS
     }));
   };
 
@@ -536,6 +548,21 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* BONUS ENHANCEMENT: Chef Tips */}
+          {safeRecipe.tips.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest text-orange-600 mb-4">👨‍🍳 Chef Tips</h3>
+              <div className="space-y-3">
+                {safeRecipe.tips.map((tip, i) => (
+                  <div key={i} className="p-4 bg-orange-50 dark:bg-orange-900/10 rounded-2xl flex gap-3 items-start border border-orange-100 dark:border-orange-800">
+                    <span className="text-lg">💡</span>
+                    <p className="text-xs font-semibold text-orange-800 dark:text-orange-200 leading-snug">{tip}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-6 flex gap-4">
@@ -545,17 +572,48 @@ const App: React.FC = () => {
     );
   };
 
-  const renderShopping = () => (
-    <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] p-6 overflow-y-auto">
-      <div className="flex items-center justify-between mb-8">
-        <button onClick={() => setState(prev => ({...prev, screen: AppScreen.RESULT}))} className="text-gray-400"><i className="fa-solid fa-chevron-left"></i></button>
-        <h2 className="text-xl font-black uppercase italic text-blue-600">Nearby Stores</h2>
-        <button onClick={handleReadAloud} className="text-blue-600"><i className="fa-solid fa-volume-high"></i></button>
+  const renderShopping = () => {
+    const recipe = state.currentRecipe;
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] p-6 overflow-y-auto">
+        <div className="flex items-center justify-between mb-8">
+          <button onClick={() => setState(prev => ({...prev, screen: AppScreen.RESULT}))} className="text-gray-400"><i className="fa-solid fa-chevron-left"></i></button>
+          <h2 className="text-xl font-black uppercase italic text-blue-600">Nearby Stores</h2>
+          <button onClick={handleReadAloud} className="text-blue-600"><i className="fa-solid fa-volume-high"></i></button>
+        </div>
+
+        {/* BUG FIX #3: Shopping Checklist */}
+        {recipe && (
+          <div className="mb-8 p-5 bg-blue-50 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-800 shadow-sm">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-cart-shopping"></i> Your Shopping List
+            </h3>
+            <div className="space-y-3 mb-4">
+              {recipe.need_to_buy.map((ing, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded border-2 border-blue-200 dark:border-blue-700 flex items-center justify-center text-[10px] text-blue-500">
+                    <i className="fa-solid fa-check opacity-0"></i>
+                  </div>
+                  <div className="flex-1 flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <span>{ing.name}</span>
+                    <span className="text-blue-600">{ing.quantity}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pt-3 border-t border-blue-100 dark:border-blue-800 flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase text-gray-400">Estimated Cost</span>
+              <span className="text-sm font-black text-blue-800 dark:text-blue-300">~{recipe.estimated_shopping_cost} DH</span>
+            </div>
+          </div>
+        )}
+
+        <StoreList city={state.city || 'Casablanca'} />
+        
+        <button onClick={() => { setState(prev => ({ ...prev, screen: AppScreen.COOKING })); setCurrentStepIndex(0); }} className="mt-8 w-full bg-black text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase active:scale-95 transition-all">I'm Ready</button>
       </div>
-      <StoreList city={state.city || 'Casablanca'} />
-      <button onClick={() => { setState(prev => ({ ...prev, screen: AppScreen.COOKING })); setCurrentStepIndex(0); }} className="mt-8 w-full bg-black text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase active:scale-95 transition-all">I'm Ready</button>
-    </div>
-  );
+    );
+  };
 
   const renderCooking = () => {
     const recipe = state.currentRecipe;
@@ -576,7 +634,7 @@ const App: React.FC = () => {
         <div className="grid grid-cols-2 gap-4 mt-12 pb-6">
           <button disabled={currentStepIndex === 0} onClick={() => setCurrentStepIndex(currentStepIndex - 1)} className="p-5 bg-gray-100 text-gray-600 rounded-2xl font-bold uppercase text-xs dark:bg-gray-800 dark:text-gray-400">Prev</button>
           {currentStepIndex === recipe.steps.length - 1 ? (
-            <button onClick={() => setState(prev => ({ ...prev, screen: AppScreen.SUCCESS }))} className="p-5 bg-black text-white rounded-2xl font-bold uppercase text-xs shadow-lg">Finish</button>
+            <button onClick={finishCooking} className="p-5 bg-black text-white rounded-2xl font-bold uppercase text-xs shadow-lg">Finish</button>
           ) : (
             <button onClick={() => setCurrentStepIndex(currentStepIndex + 1)} className="p-5 bg-orange-600 text-white rounded-2xl font-bold uppercase text-xs shadow-lg">Next</button>
           )}
@@ -585,16 +643,63 @@ const App: React.FC = () => {
     );
   };
 
-  const renderSuccess = () => (
-    <div className={`flex flex-col h-full items-center justify-center p-8 text-white text-center animate-in fade-in zoom-in duration-500 bg-emerald-600`}>
-      <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl animate-bounce">
-        <i className="fa-solid fa-trophy text-emerald-600 text-4xl"></i>
+  const renderSuccess = () => {
+    const recipe = state.currentRecipe;
+    if (!recipe) return null;
+    
+    // BUG FIX #2: Differentiate Hack vs Shop
+    const isHack = state.selectedMode === 'HACK';
+    const bgClass = isHack ? 'bg-gradient-to-br from-emerald-500 to-teal-700' : 'bg-gradient-to-br from-blue-600 to-indigo-800';
+    const iconClass = isHack ? 'fa-trophy text-emerald-600' : 'fa-star text-blue-600';
+    const title = isHack ? 'MEAL RESCUED!' : 'PERFECT RECIPE!';
+    
+    return (
+      <div className={`flex flex-col h-full items-center justify-center p-8 text-white text-center animate-in fade-in zoom-in duration-500 ${bgClass}`}>
+        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl animate-bounce">
+          <i className={`fa-solid ${iconClass} text-4xl`}></i>
+        </div>
+        
+        <h1 className="text-5xl font-black uppercase italic mb-6 tracking-tighter">{title}</h1>
+        
+        <div className="space-y-4 mb-10 w-full max-w-[280px]">
+          {isHack ? (
+            <>
+              <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">Session Savings</div>
+                <div className="text-3xl font-black">+{recipe.savings_dh} DH</div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-bold opacity-90 flex items-center justify-center gap-2">🌱 CO2 Prevented: ~{recipe.co2_saved_kg} kg</p>
+                <p className="text-xs font-bold opacity-90 flex items-center justify-center gap-2">♻️ Food Saved: ~{recipe.waste_avoided_g}g from trash</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">Masterpiece Created</div>
+                <div className="text-xl font-black">🛒 Original Recipe Mastered</div>
+              </div>
+              <p className="text-xs font-bold opacity-90">♻️ Food Waste Avoided: ~{recipe.waste_avoided_g}g</p>
+            </>
+          )}
+        </div>
+
+        <button 
+          onClick={() => saveRecipe(isHack ? 'HACK_IT' : 'SHOP_IT')} 
+          className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase mb-4 active:scale-95"
+        >
+          Save Recipe
+        </button>
+        
+        <button 
+          onClick={() => setState(prev => ({...prev, screen: AppScreen.LANDING}))} 
+          className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black text-lg shadow-xl uppercase active:scale-95"
+        >
+          Go Home
+        </button>
       </div>
-      <h1 className="text-5xl font-black uppercase italic mb-2 tracking-tighter">MEAL RESCUED!</h1>
-      <button onClick={() => saveRecipe('HACK_IT')} className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase mb-4 active:scale-95">Save Recipe</button>
-      <button onClick={() => setState(prev => ({...prev, screen: AppScreen.LANDING}))} className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black text-lg shadow-xl uppercase">Go Home</button>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="max-w-md mx-auto bg-white dark:bg-[#1e1e1e] min-h-screen relative shadow-2xl overflow-hidden flex flex-col transition-all duration-300">
