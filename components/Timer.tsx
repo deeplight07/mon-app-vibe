@@ -44,13 +44,23 @@ const Timer: React.FC = () => {
       <div className="flex gap-2">
         {!isActive && (
           <div className="flex gap-1">
-            <button onClick={() => setMinutes(m => m + 1)} className="px-2 py-1 bg-white rounded shadow text-xs">+M</button>
-            <button onClick={() => setMinutes(m => Math.max(0, m - 1))} className="px-2 py-1 bg-white rounded shadow text-xs">-M</button>
+            <button 
+              onClick={() => setMinutes(m => m + 1)} 
+              className="px-3 py-2 bg-white rounded shadow text-sm min-h-[44px] flex items-center justify-center font-bold"
+            >
+              +M
+            </button>
+            <button 
+              onClick={() => setMinutes(m => Math.max(0, m - 1))} 
+              className="px-3 py-2 bg-white rounded shadow text-sm min-h-[44px] flex items-center justify-center font-bold"
+            >
+              -M
+            </button>
           </div>
         )}
         <button 
           onClick={toggle} 
-          className={`px-4 py-2 rounded-lg font-bold text-white ${isActive ? 'bg-red-500' : 'bg-green-500'}`}
+          className={`px-4 py-2 rounded-lg font-bold text-white min-h-[44px] ${isActive ? 'bg-red-500' : 'bg-green-500'}`}
         >
           {isActive ? 'Stop' : 'Start'}
         </button>

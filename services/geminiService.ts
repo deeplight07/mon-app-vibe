@@ -334,7 +334,7 @@ Use Google Maps to verify details.`,
   /**
    * TTS - Generate Speech
    */
-  static async speak(text: string) {
+  static async speak(text: string): Promise<void> {
     const ai = this.getClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
@@ -349,12 +349,18 @@ Use Google Maps to verify details.`,
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioCtx.destination);
-      source.start();
+      return new Promise(async (resolve) => {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          audioCtx.close();
+          resolve();
+        };
+        source.start();
+      });
     }
   }
 }
