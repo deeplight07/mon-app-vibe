@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 import { SubstitutionHack, Recipe, StoreLocation } from "../types";
 
@@ -43,13 +44,11 @@ async function decodeAudioData(
 }
 
 export class GeminiService {
-  private static instance: GoogleGenAI;
+  // Removed singleton instance to ensure the client is recreated before each API call as per guidelines.
 
   private static getClient() {
-    if (!this.instance) {
-      this.instance = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    }
-    return this.instance;
+    // Guidelines: Always initialize GoogleGenAI with { apiKey: process.env.API_KEY }
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
@@ -66,8 +65,9 @@ export class GeminiService {
         ]
       },
       config: {
-        // Fix: Replace thinkingLevel with thinkingBudget. Using 0 to disable thinking for low-latency tasks.
-        thinkingConfig: { thinkingBudget: 0 }
+        // Fix: Use thinkingBudget (tokens) instead of thinkingLevel (string) as per SDK rules.
+        // Lower budget for fast low-latency vision scan.
+        thinkingConfig: { thinkingBudget: 1024 }
       }
     });
     return response.text?.split(',').map(i => i.trim()) || [];
@@ -172,8 +172,9 @@ export class GeminiService {
       model: 'gemini-3-flash-preview',
       contents: `Request: "${query}". Available Ingredients: ${userIngredients.join(', ')}`,
       config: {
-        // Fix: Replace thinkingLevel with thinkingBudget. Using 16000 for complex reasoning tasks.
-        thinkingConfig: { thinkingBudget: 16000 },
+        // Fix: Use thinkingBudget (tokens) instead of thinkingLevel (string) as per SDK rules.
+        // Moderate budget for structured recipe reasoning.
+        thinkingConfig: { thinkingBudget: 4096 },
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: {
