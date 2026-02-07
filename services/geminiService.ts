@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 import { SubstitutionHack, Recipe, StoreLocation } from "../types";
 
@@ -54,17 +53,21 @@ export class GeminiService {
   }
 
   /**
-   * Scan image for ingredients
+   * Scan image for ingredients - Optimized with Gemini 3 Flash
    */
   static async scanIngredients(base64Image: string): Promise<string[]> {
     const ai = this.getClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
           { text: "List the food ingredients you see in this image. Return only a comma-separated list." }
         ]
+      },
+      config: {
+        // Fix: Replace thinkingLevel with thinkingBudget. Using 0 to disable thinking for low-latency tasks.
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
     return response.text?.split(',').map(i => i.trim()) || [];
@@ -132,7 +135,7 @@ export class GeminiService {
   }
 
   /**
-   * Main Decision Engine - Thinking Mode
+   * Main Decision Engine - Thinking Mode Optimized with Gemini 3 Flash
    */
   static async generateRecipeAndHacks(
     query: string, 
@@ -166,10 +169,11 @@ export class GeminiService {
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: `Request: "${query}". Available Ingredients: ${userIngredients.join(', ')}`,
       config: {
-        thinkingConfig: { thinkingBudget: 32768 },
+        // Fix: Replace thinkingLevel with thinkingBudget. Using 16000 for complex reasoning tasks.
+        thinkingConfig: { thinkingBudget: 16000 },
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: {
