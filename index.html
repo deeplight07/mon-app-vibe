@@ -23,6 +23,14 @@
       color: white !important;
     }
 
+    @keyframes pulse-soft {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); }
+      50% { transform: scale(1.05); box-shadow: 0 0 10px 2px rgba(255, 87, 34, 0.3); }
+    }
+    .chef-badge-pulse {
+      animation: pulse-soft 2s infinite ease-in-out;
+    }
+
     /* Dark Mode Global Overrides */
     body.dark-mode {
       background-color: #1E1E1E;
@@ -70,7 +78,6 @@
       color: #777777 !important;
     }
 
-    /* Logic Overrides for Success/Info colors in Dark Mode */
     .dark-mode .bg-green-600 {
       background-color: #4CAF50 !important;
     }

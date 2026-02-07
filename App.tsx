@@ -37,19 +37,13 @@ const App: React.FC = () => {
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [newIngredientName, setNewIngredientName] = useState('');
   
-  // Feature 2 State: Cooking Steps Expansion
   const [showAllSteps, setShowAllSteps] = useState(false);
-  
-  // Image Edit State
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [editImagePrompt, setEditImagePrompt] = useState('');
-
-  // Fix 1: TTS Loading State
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // EXACT NORMALIZATION LOGIC FOR SAFETY SCORE
   const normalizeScore = (raw: any): number => {
     let num = parseFloat(String(raw).replace('%', ''));
     if (num > 0 && num < 1) num = num * 100;
@@ -59,7 +53,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      // Strip base64 image data before saving to localStorage to prevent quota overflow
       const stateToSave = {
         ...state,
         cookbook: state.cookbook.map(r => ({ ...r, imageUrl: '' })),
@@ -145,13 +138,10 @@ const App: React.FC = () => {
     setLoadingMsg("Chef AI is crafting your rescue plan...");
     try {
       const recipe = await GeminiService.generateRecipeAndHacks(inputQuery, state.scannedIngredients);
-      
-      // Show result immediately WITHOUT image
       recipe.imageUrl = '';
       setState(prev => ({ ...prev, currentRecipe: recipe, screen: AppScreen.RESULT, selectedMode: null }));
       setLoading(false);
 
-      // Generate illustration in background (non-blocking)
       GeminiService.generateRecipeImage(recipe.name).then(illustration => {
         if (illustration) {
           setState(prev => {
@@ -240,8 +230,9 @@ const App: React.FC = () => {
     }
   };
 
-  const isRecipeSaved = (recipeId?: string) => {
+  const isRecipeSaved = (recipeId?: string, type?: string) => {
     if (!recipeId) return false;
+    if (type) return state.cookbook.some(r => r.id === recipeId && r.type === type);
     return state.cookbook.some(r => r.id === recipeId);
   };
 
@@ -249,7 +240,7 @@ const App: React.FC = () => {
     const current = state.currentRecipe;
     if (!current) return;
     
-    if (isRecipeSaved(current.id)) {
+    if (isRecipeSaved(current.id, type)) {
       showToast("Already Saved");
       return;
     }
@@ -288,7 +279,7 @@ const App: React.FC = () => {
     if (!state.currentRecipe) return;
     const savings = state.selectedMode === 'HACK' 
       ? (state.currentRecipe.savings_dh || 10)
-      : Math.round((state.currentRecipe.waste_avoided_g || 200) / 50); // ~1 DH per 50g of waste avoided
+      : Math.round((state.currentRecipe.waste_avoided_g || 200) / 50);
     setState(prev => ({
       ...prev,
       wasteSaved: prev.wasteSaved + savings,
@@ -385,7 +376,6 @@ const App: React.FC = () => {
     const recipe = state.currentRecipe;
     if (!recipe) return null;
 
-    // Smart Recommendation Logic (Change 1)
     const hackCoversEnough = recipe.need_to_buy.length <= 2;
     const safetyOk = normalizeScore(recipe.safety_score) >= 70;
     const recommendedId = (hackCoversEnough && safetyOk) ? 1 : 2;
@@ -424,25 +414,10 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {recipe.already_have && recipe.already_have.length > 0 && (
-            <div className="space-y-2 animate-in fade-in duration-500">
-              <h4 className="text-[10px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1">
-                <i className="fa-solid fa-circle-check"></i> In Your Pantry
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {recipe.already_have.map((ing, i) => (
-                  <span key={i} className="px-3 py-1 bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/10 dark:text-green-400 dark:border-green-800/30 rounded-lg text-[11px] font-bold">
-                    {ing.name} — {ing.quantity}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 gap-4">
             <div className={`p-4 rounded-3xl border-2 bg-white dark:bg-[#2D2D2D] transition-all relative ${recommendedId === 1 ? 'border-emerald-500 shadow-xl' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}>
-              <button onClick={() => saveRecipe('HACK_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id) ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
-              {recommendedId === 1 && <div className="absolute -top-3 left-6 bg-emerald-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase">Chef Recommends</div>}
+              <button onClick={() => saveRecipe('HACK_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id, 'HACK_IT') ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id, 'HACK_IT') ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
+              {recommendedId === 1 && <div className="absolute -top-3 left-6 bg-emerald-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase chef-badge-pulse">Chef Recommends</div>}
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-black dark:text-white uppercase italic">🔧 Hack It</h3>
@@ -458,43 +433,21 @@ const App: React.FC = () => {
                   </div>
                 ))}
               </div>
-
-              {/* Warning Box for Hack It (Change 2) */}
               {recipe.need_to_buy.length > 0 && (
                 <div className="mt-3 mb-4 p-3 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800">
                   <div className="text-xs font-black uppercase text-orange-600 mb-1">
                     ⚠️ Still need {recipe.need_to_buy.length} items
                   </div>
-                  <div className="text-xs text-gray-500 italic">
-                    {recipe.need_to_buy.slice(0, 3).map(ing => ing.name).join(', ')}
-                    {recipe.need_to_buy.length > 3 ? ` +${recipe.need_to_buy.length - 3} more` : ''}
-                  </div>
                 </div>
               )}
-
               <button onClick={() => { setState(prev => ({ ...prev, currentRecipe: recipe, selectedMode: 'HACK', screen: AppScreen.RECIPE_DETAIL })); }} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all text-xs min-h-[44px]">Cook with Hacks</button>
             </div>
 
             <div className={`p-4 rounded-3xl border-2 bg-white dark:bg-[#2D2D2D] transition-all relative ${recommendedId === 2 ? 'border-blue-500 shadow-xl' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}>
-              <button onClick={() => saveRecipe('SHOP_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id) ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
-              {recommendedId === 2 && <div className="absolute -top-3 left-6 bg-blue-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase">Chef Recommends</div>}
+              <button onClick={() => saveRecipe('SHOP_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id, 'SHOP_IT') ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id, 'SHOP_IT') ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
+              {recommendedId === 2 && <div className="absolute -top-3 left-6 bg-blue-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase chef-badge-pulse">Chef Recommends</div>}
               <h3 className="text-lg font-black dark:text-white uppercase italic mb-0.5">🛒 Shop It</h3>
-              <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase mb-3">🛒 {recipe.need_to_buy.length} items to buy • ~{recipe.estimated_shopping_cost} DH</div>
-              
-              <div className="space-y-2 mb-4">
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-xl">
-                  <h4 className="text-xs font-black uppercase text-blue-700 dark:text-blue-400 mb-2">Shopping List</h4>
-                  <ul className="space-y-1">
-                    {recipe.need_to_buy.slice(0, 3).map((ing, i) => (
-                      <li key={i} className="text-xs font-bold text-blue-800 dark:text-blue-300 flex justify-between">
-                        <span>{ing.name}</span>
-                        <span>{ing.quantity}</span>
-                      </li>
-                    ))}
-                    {recipe.need_to_buy.length > 3 && <li className="text-[10px] text-blue-400 font-bold italic uppercase mt-1">+{recipe.need_to_buy.length - 3} more items...</li>}
-                  </ul>
-                </div>
-              </div>
+              <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase mb-3">🛒 {recipe.need_to_buy.length} items to buy</div>
               <button onClick={() => setState(prev => ({ ...prev, currentRecipe: recipe, selectedMode: 'SHOP', screen: AppScreen.SHOPPING }))} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all text-xs min-h-[44px]">Go Shopping First</button>
             </div>
           </div>
@@ -510,30 +463,23 @@ const App: React.FC = () => {
         <h2 className="text-xl font-black tracking-tight uppercase italic text-orange-600">My Cookbook</h2>
         <div className="w-8"></div>
       </div>
-
       <div className="grid grid-cols-1 gap-4 p-6">
         {state.cookbook.length > 0 ? state.cookbook.map(recipe => (
-          <div key={recipe.id} onClick={() => setState(prev => ({...prev, selectedCookbookRecipe: recipe, screen: AppScreen.RECIPE_DETAIL}))} className="group cursor-pointer bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-[1.02] transition-all active:scale-95">
+          <div key={`${recipe.id}-${recipe.type}`} onClick={() => setState(prev => ({...prev, selectedCookbookRecipe: recipe, screen: AppScreen.RECIPE_DETAIL}))} className="group cursor-pointer bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-[1.02] transition-all active:scale-95">
             <div className="h-40 relative bg-gray-100 dark:bg-gray-900">
               {recipe.imageUrl ? (
                 <img src={recipe.imageUrl} className="w-full h-full object-cover" alt={recipe.name} />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center text-white text-3xl">🍝</div>
               )}
-              <div className="absolute top-3 right-3 flex gap-1">
-                <span className={`px-2 py-1 rounded text-[11px] font-black uppercase text-white ${recipe.type === 'HACK_IT' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
-                  {recipe.type === 'HACK_IT' ? 'Rescued' : 'Original'}
-                </span>
-              </div>
             </div>
             <div className="p-4">
               <h3 className="font-black text-sm uppercase dark:text-white line-clamp-1">{recipe.name}</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase mt-1">{recipe.prepTime} • {recipe.difficulty || 'Medium'}</p>
+              <p className="text-xs text-gray-400 font-bold uppercase mt-1">{recipe.prepTime} • {recipe.difficulty}</p>
             </div>
           </div>
         )) : (
-          <div className="text-center py-20 text-gray-400 col-span-full">
-            <i className="fa-solid fa-utensils text-4xl mb-4 opacity-20"></i>
+          <div className="text-center py-20 text-gray-400">
             <p className="text-xs uppercase font-black">No recipes saved yet.</p>
           </div>
         )}
@@ -550,15 +496,9 @@ const App: React.FC = () => {
       hacks: Array.isArray(recipe.hacks) ? recipe.hacks : [],
       ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
       steps: Array.isArray(recipe.steps) ? recipe.steps : [],
-      tips: Array.isArray(recipe.tips) ? recipe.tips : [],
       safety_factors: Array.isArray(recipe.safety_factors) ? recipe.safety_factors : [],
       already_have: Array.isArray(recipe.already_have) ? recipe.already_have : [],
       need_to_buy: Array.isArray(recipe.need_to_buy) ? recipe.need_to_buy : [],
-      safety_score: recipe.safety_score || 0,
-      difficulty: recipe.difficulty || 'Medium',
-      name: recipe.name || 'Untitled Recipe',
-      description: recipe.description || '',
-      imageUrl: recipe.imageUrl || null,
     };
 
     const isHackMode = safeRecipe.type === 'HACK_IT' || state.selectedMode === 'HACK';
@@ -573,57 +513,45 @@ const App: React.FC = () => {
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
           <button onClick={() => setState(prev => ({...prev, screen: state.selectedCookbookRecipe ? AppScreen.COOKBOOK : AppScreen.RESULT}))} className="absolute top-6 left-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white p-2 min-h-[44px]"><i className="fa-solid fa-arrow-left"></i></button>
-          
-          <button 
-            onClick={() => setIsEditingImage(true)} 
-            className="absolute top-6 right-6 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 p-2 min-h-[44px]"
-          >
-            <i className="fa-solid fa-wand-magic-sparkles"></i>
-          </button>
-
+          <button onClick={() => setIsEditingImage(true)} className="absolute top-6 right-6 w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 p-2 min-h-[44px]"><i className="fa-solid fa-wand-magic-sparkles"></i></button>
           <div className="absolute bottom-6 left-6 right-6">
-            <div className="flex gap-2 mb-2">
-              <span className="px-2 py-1 bg-orange-600 text-white text-[11px] font-black uppercase rounded">{safeRecipe.difficulty}</span>
-              <span className={`px-2 py-1 text-white text-[11px] font-black uppercase rounded ${getSafetyColor(safeRecipe.safety_score)}`}>{formatPercentage(safeRecipe.safety_score)}</span>
-            </div>
             <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">{safeRecipe.name}</h1>
           </div>
         </div>
 
         {isEditingImage && (
-          <div className="p-6 bg-orange-50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800 animate-in slide-in-from-top-4 duration-300">
+          <div className="p-6 bg-orange-50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800">
             <div className="flex justify-between items-center mb-2">
               <h4 className="text-xs font-black uppercase text-orange-600">AI Magic Edit</h4>
               <button onClick={() => setIsEditingImage(false)} className="text-gray-400 p-2">×</button>
             </div>
             <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="e.g. 'Add a retro filter'" 
-                value={editImagePrompt}
-                onChange={(e) => setEditImagePrompt(e.target.value)}
-                className="flex-1 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 rounded-xl px-4 py-3 text-xs outline-none focus:border-orange-500 min-h-[44px]"
-              />
-              <button 
-                onClick={handleMagicEdit}
-                disabled={!editImagePrompt.trim() || loading}
-                className="bg-orange-600 text-white px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg disabled:opacity-50 min-h-[44px]"
-              >
-                Apply
-              </button>
+              <input type="text" placeholder="e.g. 'Add a retro filter'" value={editImagePrompt} onChange={(e) => setEditImagePrompt(e.target.value)} className="flex-1 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 rounded-xl px-4 py-3 text-xs outline-none min-h-[44px]" />
+              <button onClick={handleMagicEdit} disabled={!editImagePrompt.trim() || loading} className="bg-orange-600 text-white px-6 py-3 rounded-xl font-black uppercase text-xs min-h-[44px]">Apply</button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">Powered by Gemini AI</p>
           </div>
         )}
 
         <div className="p-6 space-y-8">
+          {safeRecipe.safety_factors.length > 0 && (
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {safeRecipe.safety_factors.map((f, i) => (
+                <div key={i} className="shrink-0 p-3 bg-gray-50 dark:bg-gray-800 rounded-2xl flex flex-col items-center min-w-[80px]">
+                  <span className="text-lg mb-1">{f.icon}</span>
+                  <span className="text-[9px] font-black uppercase text-gray-400 text-center">{f.name}</span>
+                  <span className="text-xs font-black mt-1">{f.score}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {isHackMode && safeRecipe.hacks.length > 0 && (
-            <div className="bg-gray-900 dark:bg-gray-900 border-l-4 border-emerald-500 p-4 rounded-xl shadow-lg">
+            <div className="bg-gray-900 border-l-4 border-emerald-500 p-4 rounded-xl shadow-lg">
               <h3 className="text-emerald-500 text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2"><i className="fa-solid fa-wrench"></i> Hacks used</h3>
               <div className="space-y-2">
                 {safeRecipe.hacks.map((h, idx) => (
                   <div key={idx} className="text-xs font-bold text-gray-300">
-                    <span className="text-emerald-400">{h.suggested_hack}</span> <span className="mx-2 text-gray-500">→</span> <span className="text-gray-400">instead of {h.missing_item}</span>
+                    <span className="text-emerald-400">{h.suggested_hack}</span> <span className="mx-2 text-gray-500">→</span> <span className="text-gray-400">{h.missing_item}</span>
                   </div>
                 ))}
               </div>
@@ -631,16 +559,31 @@ const App: React.FC = () => {
           )}
 
           <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-orange-600 mb-4 flex items-center gap-2"><i className="fa-solid fa-check-circle"></i> Ingredients</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest text-orange-600 mb-4 flex items-center gap-2"><i className="fa-solid fa-check-circle"></i> Ingredients {isHackMode ? '(Hacked)' : '(Original)'}</h3>
             <div className="space-y-3">
-              {safeRecipe.ingredients.map((ing, i) => (
-                <div key={i} className="py-2 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex justify-between text-xs font-bold uppercase dark:text-gray-300">
-                    <span>{ing.name}</span>
-                    <span className="text-emerald-500">{ing.quantity}</span>
+              {safeRecipe.ingredients.map((ing, i) => {
+                const hack = isHackMode ? safeRecipe.hacks.find((h: any) => h.missing_item.toLowerCase() === ing.name.toLowerCase()) : null;
+                return (
+                  <div key={i} className="py-2 border-b border-gray-100 dark:border-gray-800">
+                    {hack ? (
+                      <div>
+                        <div className="flex justify-between text-xs font-bold uppercase dark:text-gray-300">
+                          <span className="line-through text-gray-400">{ing.name}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase mt-1">
+                          <span className="text-emerald-600">↳ {hack.suggested_hack}</span>
+                          <span className="text-emerald-500">{hack.suggested_quantity}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-xs font-bold uppercase dark:text-gray-300">
+                        <span>{ing.name}</span>
+                        <span className="text-emerald-500">{ing.quantity}</span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -671,14 +614,7 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => setState(prev => ({...prev, screen: AppScreen.RESULT}))} className="text-gray-400 p-2"><i className="fa-solid fa-chevron-left"></i></button>
           <h2 className="text-xl font-black uppercase italic text-blue-600">Nearby Stores</h2>
-          <button 
-            onClick={handleReadAloud} 
-            className={`text-blue-600 p-2 ${isSpeaking ? 'opacity-50 pointer-events-none' : ''}`}
-          >
-            <i className={`fa-solid ${isSpeaking ? 'fa-spinner fa-spin' : 'fa-volume-high'}`}></i>
-          </button>
         </div>
-
         {recipe && (
           <div className="mb-8 p-5 bg-blue-50 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-800 shadow-sm">
             <h3 className="text-xs font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
@@ -686,26 +622,15 @@ const App: React.FC = () => {
             </h3>
             <div className="space-y-3 mb-4">
               {recipe.need_to_buy.map((ing, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded border-2 border-blue-200 dark:border-blue-700 flex items-center justify-center text-xs text-blue-500">
-                    <i className="fa-solid fa-check opacity-0"></i>
-                  </div>
-                  <div className="flex-1 flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-                    <span>{ing.name}</span>
-                    <span className="text-blue-600">{ing.quantity}</span>
-                    </div>
+                <div key={i} className="flex-1 flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
+                  <span>{ing.name}</span>
+                  <span className="text-blue-600">{ing.quantity}</span>
                 </div>
               ))}
             </div>
-            <div className="pt-3 border-t border-blue-100 dark:border-blue-800 flex justify-between items-center">
-              <span className="text-xs font-black uppercase text-gray-400">Estimated Cost</span>
-              <span className="text-sm font-black text-blue-800 dark:text-blue-300">~{recipe.estimated_shopping_cost} DH</span>
-            </div>
           </div>
         )}
-
         <StoreList city={state.city || 'Casablanca'} />
-        
         <button onClick={() => { setState(prev => ({ ...prev, screen: AppScreen.RECIPE_DETAIL })); }} className="mt-8 w-full bg-black text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase active:scale-95 transition-all min-h-[44px]">Start Cooking</button>
       </div>
     );
@@ -714,54 +639,37 @@ const App: React.FC = () => {
   const renderCooking = () => {
     const recipe = state.currentRecipe;
     if (!recipe) return null;
+    const isHack = state.selectedMode === 'HACK';
+    const rawStep = recipe.steps[currentStepIndex];
+    let displayStep: React.ReactNode = rawStep;
 
-    const progressPercent = ((currentStepIndex + 1) / recipe.steps.length) * 100;
+    if (isHack) {
+      const parts: React.ReactNode[] = [];
+      let currentText = rawStep;
+      recipe.hacks.forEach((h, i) => {
+        const regex = new RegExp(`(${h.missing_item})`, 'gi');
+        const splitText = currentText.split(regex);
+        displayStep = splitText.map((chunk, j) => 
+          chunk.toLowerCase() === h.missing_item.toLowerCase() ? 
+          <span key={`${i}-${j}`} className="text-emerald-500 underline decoration-emerald-200 decoration-wavy">{h.suggested_hack}</span> : 
+          chunk
+        );
+      });
+    }
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] p-6">
         <div className="flex justify-between items-center mb-4">
           <button onClick={() => setState(prev => ({...prev, screen: AppScreen.RESULT}))} className="text-gray-400 p-2"><i className="fa-solid fa-chevron-left"></i></button>
-          <div className={`px-3 py-1 rounded-full text-[11px] font-black uppercase border ${state.selectedMode === 'HACK' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-            {state.selectedMode === 'HACK' ? '🔧 HACKED' : '🛒 ORIGINAL'}
+          <div className={`px-3 py-1 rounded-full text-[11px] font-black uppercase border ${isHack ? 'bg-green-50 text-green-600 border-green-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+            {isHack ? '🔧 HACKED' : '🛒 ORIGINAL'}
           </div>
         </div>
-
-        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-2 mb-1">
-          <div 
-            className="h-full bg-orange-500 transition-all duration-500" 
-            style={{ width: `${progressPercent}%` }}
-          ></div>
+        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
+          <div className="h-full bg-orange-500" style={{ width: `${((currentStepIndex + 1) / recipe.steps.length) * 100}%` }}></div>
         </div>
-        <div className="text-[10px] text-gray-400 font-bold text-center uppercase mb-3">Step {currentStepIndex + 1} of {recipe.steps.length}</div>
-
-        <div className="mb-4">
-          <button 
-            onClick={() => setShowAllSteps(!showAllSteps)} 
-            className="w-full text-[10px] text-blue-500 underline font-black uppercase text-center py-1 transition-all active:scale-95"
-          >
-            {showAllSteps ? '🔼 Hide Steps Overview' : '📋 View All Steps List'}
-          </button>
-          {showAllSteps && (
-            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl space-y-2 max-h-48 overflow-y-auto animate-in slide-in-from-top-2 duration-300 border border-gray-100 dark:border-gray-700">
-              {recipe.steps.map((step, idx) => (
-                <div 
-                  key={idx} 
-                  className={`text-[11px] leading-tight flex gap-2 ${idx === currentStepIndex ? 'font-black text-orange-600' : 'text-gray-400 font-medium'}`}
-                  onClick={() => { setCurrentStepIndex(idx); setShowAllSteps(false); }}
-                >
-                  <span className="shrink-0">{idx + 1}.</span>
-                  <span className="line-clamp-2">{step}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex-1 flex flex-col justify-center text-center space-y-8">
-          <div>
-            <span className="text-xs font-black text-orange-500 uppercase tracking-widest">Active Step</span>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight dark:text-white uppercase italic mt-2">{recipe.steps[currentStepIndex]}</h1>
-          </div>
+          <h1 className="text-2xl font-black text-gray-900 leading-tight dark:text-white uppercase italic">{displayStep}</h1>
           <Timer />
         </div>
         <div className="grid grid-cols-2 gap-4 mt-12 pb-6">
@@ -777,76 +685,22 @@ const App: React.FC = () => {
   };
 
   const renderSuccess = () => {
-    const recipe = state.currentRecipe;
-    if (!recipe) return null;
     const isHack = state.selectedMode === 'HACK';
     const bgClass = isHack ? 'bg-gradient-to-br from-emerald-500 to-teal-700' : 'bg-gradient-to-br from-blue-600 to-indigo-800';
-    const iconClass = isHack ? 'fa-trophy text-emerald-600' : 'fa-star text-blue-600';
-    const title = isHack ? 'MEAL RESCUED!' : 'PERFECT RECIPE!';
-    
-    // Fix Savings Display Logic (Change 3 & 4)
-    const sessionSavings = isHack 
-      ? (recipe.savings_dh || 10)
-      : Math.round((recipe.waste_avoided_g || 200) / 50);
-
-    const alreadySaved = isRecipeSaved(recipe.id);
-
     return (
       <div className={`flex flex-col h-full items-center justify-center p-8 text-white text-center animate-in fade-in zoom-in duration-500 ${bgClass}`}>
-        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl animate-bounce">
-          <i className={`fa-solid ${iconClass} text-4xl`}></i>
+        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl">
+          <i className={`fa-solid ${isHack ? 'fa-trophy text-emerald-600' : 'fa-star text-blue-600'} text-4xl`}></i>
         </div>
-        
-        <h1 className="text-4xl font-black uppercase italic mb-6 tracking-tighter">{title}</h1>
-        
-        <div className="space-y-4 mb-10 w-full max-w-[280px]">
-          <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
-            <div className="text-xs font-black uppercase tracking-widest opacity-70">
-              {isHack ? 'Session Savings' : '🛒 Precision Shopping'}
-            </div>
-            <div className="text-2xl font-black">
-              {isHack ? `+${sessionSavings} DH Saved` : 'Cooked from Scratch!'}
-            </div>
-          </div>
-          <div className="space-y-1">
-            {isHack ? (
-              <>
-                <p className="text-xs font-bold opacity-90">🌱 Food rescued: ~{recipe.waste_avoided_g}g</p>
-                <p className="text-[10px] font-bold opacity-70 uppercase">🌍 CO2 prevented: ~{recipe.co2_saved_kg}kg</p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-bold opacity-90">Bought only what you needed — ~{recipe.waste_avoided_g}g of waste avoided</p>
-                <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mt-1">+{sessionSavings} DH value saved from preventing waste</p>
-              </>
-            )}
-          </div>
-        </div>
-
-        <button 
-          onClick={() => !alreadySaved && saveRecipe(isHack ? 'HACK_IT' : 'SHOP_IT')} 
-          className={`w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-lg shadow-xl uppercase mb-4 active:scale-95 transition-all min-h-[44px] ${alreadySaved ? 'opacity-60 pointer-events-none' : ''}`}
-        >
-          {alreadySaved ? '✅ Already in Cookbook' : 'Save Recipe'}
-        </button>
-        
-        <button 
-          onClick={() => setState(prev => ({...prev, screen: AppScreen.LANDING}))} 
-          className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black text-lg shadow-xl uppercase active:scale-95 transition-all min-h-[44px]"
-        >
-          🍳 Rescue Another Meal
-        </button>
-
-        <p className="text-[10px] text-white/60 text-center mt-6 font-bold uppercase tracking-widest">
-          Lifetime total: {state.wasteSaved} DH saved across {state.cookbook.length} recipes
-        </p>
+        <h1 className="text-4xl font-black uppercase italic mb-6 tracking-tighter">{isHack ? 'MEAL RESCUED!' : 'PERFECT RECIPE!'}</h1>
+        <button onClick={() => setState(prev => ({...prev, screen: AppScreen.LANDING}))} className="w-full bg-white text-gray-900 py-5 rounded-2xl font-black text-lg shadow-xl uppercase min-h-[44px]">Rescue Another Meal</button>
       </div>
     );
   };
 
   return (
     <div className="max-w-md mx-auto bg-white dark:bg-[#1e1e1e] min-h-screen relative shadow-2xl overflow-hidden flex flex-col transition-all duration-300">
-      {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] bg-black text-white px-4 py-2 rounded-full text-xs font-black uppercase shadow-2xl animate-in slide-in-from-top-4">{toast}</div>}
+      {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] bg-black text-white px-4 py-2 rounded-full text-xs font-black uppercase shadow-2xl">{toast}</div>}
       {state.screen !== AppScreen.SUCCESS && state.screen !== AppScreen.RECIPE_DETAIL && renderHeader()}
       <div className="flex-1 overflow-y-auto">
         {state.screen === AppScreen.LANDING && renderLanding()}
@@ -861,7 +715,6 @@ const App: React.FC = () => {
         <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-8 text-center text-white">
           <div className="w-20 h-20 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-6"></div>
           <p className="text-xl font-black mb-2 uppercase italic tracking-tight">{loadingMsg}</p>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest animate-pulse">Gemini AI Engine running...</p>
         </div>
       )}
     </div>
