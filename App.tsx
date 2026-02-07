@@ -283,7 +283,9 @@ const App: React.FC = () => {
 
   const finishCooking = () => {
     if (!state.currentRecipe) return;
-    const savings = state.selectedMode === 'HACK' ? (state.currentRecipe.savings_dh || 5) : 5;
+    const savings = state.selectedMode === 'HACK' 
+      ? (state.currentRecipe.savings_dh || 10)
+      : Math.round((state.currentRecipe.waste_avoided_g || 200) / 50); // ~1 DH per 50g of waste avoided
     setState(prev => ({
       ...prev,
       wasteSaved: prev.wasteSaved + savings,
@@ -379,7 +381,11 @@ const App: React.FC = () => {
   const renderResult = () => {
     const recipe = state.currentRecipe;
     if (!recipe) return null;
-    const recommendedId = (normalizeScore(recipe.safety_score) >= 75 && recipe.hacks.length <= 3) ? 1 : 2;
+
+    // Smart Recommendation Logic (Change 1)
+    const hackCoversEnough = recipe.need_to_buy.length <= 2;
+    const safetyOk = normalizeScore(recipe.safety_score) >= 70;
+    const recommendedId = (hackCoversEnough && safetyOk) ? 1 : 2;
 
     const renderHeroImage = () => {
       if (recipe.imageUrl) {
@@ -441,7 +447,7 @@ const App: React.FC = () => {
                 </div>
                 <span className={`text-xs font-black text-white px-2 py-1 rounded ${getSafetyColor(recipe.safety_score)}`}>{formatPercentage(recipe.safety_score)}</span>
               </div>
-              <div className="space-y-1 mb-4">
+              <div className="space-y-1 mb-2">
                 {recipe.hacks.map((h, i) => (
                   <div key={i} className="text-xs text-gray-700 dark:text-gray-300 flex gap-2">
                     <span className="text-emerald-500">✓</span>
@@ -449,6 +455,20 @@ const App: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Warning Box for Hack It (Change 2) */}
+              {recipe.need_to_buy.length > 0 && (
+                <div className="mt-3 mb-4 p-3 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800">
+                  <div className="text-xs font-black uppercase text-orange-600 mb-1">
+                    ⚠️ Still need {recipe.need_to_buy.length} items
+                  </div>
+                  <div className="text-xs text-gray-500 italic">
+                    {recipe.need_to_buy.slice(0, 3).map(ing => ing.name).join(', ')}
+                    {recipe.need_to_buy.length > 3 ? ` +${recipe.need_to_buy.length - 3} more` : ''}
+                  </div>
+                </div>
+              )}
+
               <button onClick={() => { setState(prev => ({ ...prev, currentRecipe: recipe, selectedMode: 'HACK', screen: AppScreen.RECIPE_DETAIL })); }} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all text-xs min-h-[44px]">Cook with Hacks</button>
             </div>
 
@@ -760,7 +780,11 @@ const App: React.FC = () => {
     const iconClass = isHack ? 'fa-trophy text-emerald-600' : 'fa-star text-blue-600';
     const title = isHack ? 'MEAL RESCUED!' : 'PERFECT RECIPE!';
     
-    // Fix 3: Saved Check
+    // Fix Savings Display Logic (Change 3 & 4)
+    const sessionSavings = isHack 
+      ? (recipe.savings_dh || 10)
+      : Math.round((recipe.waste_avoided_g || 200) / 50);
+
     const alreadySaved = isRecipeSaved(recipe.id);
 
     return (
@@ -773,11 +797,25 @@ const App: React.FC = () => {
         
         <div className="space-y-4 mb-10 w-full max-w-[280px]">
           <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
-            <div className="text-xs font-black uppercase tracking-widest opacity-70">{isHack ? 'Session Savings' : 'Masterpiece Created'}</div>
-            <div className="text-2xl font-black">{isHack ? `+${recipe.savings_dh} DH` : 'Cooked from Scratch!'}</div>
+            <div className="text-xs font-black uppercase tracking-widest opacity-70">
+              {isHack ? 'Session Savings' : '🛒 Precision Shopping'}
+            </div>
+            <div className="text-2xl font-black">
+              {isHack ? `+${sessionSavings} DH Saved` : 'Cooked from Scratch!'}
+            </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold opacity-90">🌱 Waste Prevented: ~{recipe.waste_avoided_g}g</p>
+            {isHack ? (
+              <>
+                <p className="text-xs font-bold opacity-90">🌱 Food rescued: ~{recipe.waste_avoided_g}g</p>
+                <p className="text-[10px] font-bold opacity-70 uppercase">🌍 CO2 prevented: ~{recipe.co2_saved_kg}kg</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-bold opacity-90">Bought only what you needed — ~{recipe.waste_avoided_g}g of waste avoided</p>
+                <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mt-1">+{sessionSavings} DH value saved from preventing waste</p>
+              </>
+            )}
           </div>
         </div>
 
