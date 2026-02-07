@@ -123,14 +123,25 @@ const App: React.FC = () => {
     try {
       const recipe = await GeminiService.generateRecipeAndHacks(inputQuery, state.scannedIngredients);
       
-      setLoadingMsg("Drawing: Creating unique illustration...");
-      const illustration = await GeminiService.generateRecipeImage(recipe.name);
-      recipe.imageUrl = illustration || '';
-
+      // Show result immediately WITHOUT image
+      recipe.imageUrl = '';
       setState(prev => ({ ...prev, currentRecipe: recipe, screen: AppScreen.RESULT, selectedMode: null }));
+      setLoading(false);
+
+      // Generate illustration in background (non-blocking)
+      GeminiService.generateRecipeImage(recipe.name).then(illustration => {
+        if (illustration) {
+          setState(prev => {
+            if (prev.currentRecipe && prev.currentRecipe.id === recipe.id) {
+              return { ...prev, currentRecipe: { ...prev.currentRecipe, imageUrl: illustration } };
+            }
+            return prev;
+          });
+        }
+      }).catch(err => console.error("Background image gen failed:", err));
+
     } catch (err) {
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
