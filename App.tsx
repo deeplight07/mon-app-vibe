@@ -95,7 +95,10 @@ const App: React.FC = () => {
   };
 
   const formatPercentage = (rawScore: any) => {
-    return `${normalizeScore(rawScore)}% Safe`;
+    const s = normalizeScore(rawScore);
+    if (s >= 80) return `${s}% Safe`;
+    if (s >= 50) return `${s}% Match`;
+    return `${s}% Match`;
   };
 
   const getChefLevel = (saved: number) => {
@@ -438,7 +441,7 @@ const App: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-4">
             <div className={`p-4 rounded-3xl border-2 bg-white dark:bg-[#2D2D2D] transition-all relative ${recommendedId === 1 ? 'border-emerald-500 shadow-xl' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}>
-              <button onClick={() => saveRecipe('HACK_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`fa-solid ${isRecipeSaved(recipe.id) ? 'fa-bookmark' : 'fa-thumbtack'}`}></i></button>
+              <button onClick={() => saveRecipe('HACK_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id) ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
               {recommendedId === 1 && <div className="absolute -top-3 left-6 bg-emerald-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase">Chef Recommends</div>}
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -451,7 +454,7 @@ const App: React.FC = () => {
                 {recipe.hacks.map((h, i) => (
                   <div key={i} className="text-xs text-gray-700 dark:text-gray-300 flex gap-2">
                     <span className="text-emerald-500">✓</span>
-                    <span>Use <b>{h.suggested_hack}</b></span>
+                    <span>Use <b>{h.suggested_hack}</b> <span className="text-gray-400 italic">→ instead of {h.missing_item}</span></span>
                   </div>
                 ))}
               </div>
@@ -473,7 +476,8 @@ const App: React.FC = () => {
             </div>
 
             <div className={`p-4 rounded-3xl border-2 bg-white dark:bg-[#2D2D2D] transition-all relative ${recommendedId === 2 ? 'border-blue-500 shadow-xl' : 'border-gray-100 dark:border-gray-800 opacity-80'}`}>
-              <button onClick={() => saveRecipe('SHOP_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`fa-solid ${isRecipeSaved(recipe.id) ? 'fa-bookmark' : 'fa-thumbtack'}`}></i></button>
+              <button onClick={() => saveRecipe('SHOP_IT')} className={`absolute top-4 right-4 text-sm ${isRecipeSaved(recipe.id) ? 'text-orange-500' : 'text-gray-300'}`}><i className={`${isRecipeSaved(recipe.id) ? 'fa-solid' : 'fa-regular'} fa-bookmark`}></i></button>
+              {recommendedId === 2 && <div className="absolute -top-3 left-6 bg-blue-500 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase">Chef Recommends</div>}
               <h3 className="text-lg font-black dark:text-white uppercase italic mb-0.5">🛒 Shop It</h3>
               <div className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase mb-3">🛒 {recipe.need_to_buy.length} items to buy • ~{recipe.estimated_shopping_cost} DH</div>
               
@@ -689,7 +693,7 @@ const App: React.FC = () => {
                   <div className="flex-1 flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
                     <span>{ing.name}</span>
                     <span className="text-blue-600">{ing.quantity}</span>
-                  </div>
+                    </div>
                 </div>
               ))}
             </div>
