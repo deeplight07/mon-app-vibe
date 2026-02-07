@@ -148,8 +148,10 @@ export class GeminiService {
       Determine if missing ingredients can be safely hacked or if the user must shop.
       
       CRITICAL QUANTITY RULES:
-      - EVERY ingredient and substitution MUST include a precise quantity with units.
-      - Use metric conversions with a slash separator in parentheses.
+      - EVERY ingredient MUST have a simple, clean quantity. Examples: "200g", "2 cups", "1 tablespoon", "3 units".
+      - Do NOT duplicate or repeat measurements. NEVER use slash format like "200g / 200.0g" or "500ml / 500.0ml".
+      - For common ingredients, you may add a household equivalent in parentheses: "250g (about 1 cup)".
+      - Keep step instructions clean and readable — quantities in steps should be simple like "200g of almonds", not "200g / 200.0g".
       
       INGREDIENT SPLITTING:
       - 'already_have': Compare recipe ingredients with user's available ingredients: ${userIngredients.join(', ')}. List items user already has.
@@ -158,7 +160,7 @@ export class GeminiService {
 
       COOKBOOK ENHANCEMENTS:
       - 'difficulty': Choose from 'Easy', 'Medium', 'Chef'.
-      - 'savings_dh': Estimated savings in Moroccan Dirhams if hacked (between 10 and 100).
+      - 'savings_dh': Calculate the exact cost of the ingredients being substituted by hacks. This is what the user saves by NOT buying those items. For example, if hacking honey (typically 30 DH) with jam, savings_dh = 30. Must be realistic and proportional to the actual market price of substituted ingredients in Morocco.
       - 'co2_saved_kg': Estimated CO2 prevented from waste (0.5 to 5.0 kg).
       - 'waste_avoided_g': Estimated grams of food saved from trash (100 to 1000g).
       - 'tips': 3 professional kitchen secrets to make the dish better.
