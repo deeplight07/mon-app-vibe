@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rescue Chef AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #1f2937;
+      touch-action: manipulation;
+    }
+    .primary-btn {
+      background-color: #FF5722 !important;
+      color: white !important;
+    }
+
+    /* Dark Mode Global Overrides */
+    body.dark-mode {
+      background-color: #1E1E1E;
+      color: #E0E0E0;
+    }
+    .dark-mode .bg-white {
+      background-color: #2D2D2D !important;
+    }
+    .dark-mode .bg-gray-50 {
+      background-color: #1E1E1E !important;
+    }
+    .dark-mode .bg-gray-100 {
+      background-color: #3D3D3D !important;
+    }
+    .dark-mode .text-gray-900, 
+    .dark-mode .text-gray-800, 
+    .dark-mode .text-gray-700, 
+    .dark-mode .text-gray-600,
+    .dark-mode .text-gray-500 {
+      color: #E0E0E0 !important;
+    }
+    .dark-mode .text-gray-400 {
+      color: #A0A0A0 !important;
+    }
+    .dark-mode .border, 
+    .dark-mode .border-b, 
+    .dark-mode .border-t, 
+    .dark-mode .border-2,
+    .dark-mode .border-gray-100,
+    .dark-mode .border-gray-200,
+    .dark-mode .border-gray-300 {
+      border-color: #444444 !important;
+    }
+    .dark-mode .shadow-sm,
+    .dark-mode .shadow-lg,
+    .dark-mode .shadow-xl {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+    }
+    .dark-mode input, .dark-mode textarea {
+      background-color: #3D3D3D !important;
+      color: #E0E0E0 !important;
+      border-color: #555555 !important;
+    }
+    .dark-mode input::placeholder, .dark-mode textarea::placeholder {
+      color: #777777 !important;
+    }
+
+    /* Logic Overrides for Success/Info colors in Dark Mode */
+    .dark-mode .bg-green-600 {
+      background-color: #4CAF50 !important;
+    }
+    .dark-mode .bg-green-50 {
+      background-color: rgba(76, 175, 80, 0.1) !important;
+    }
+    .dark-mode .text-green-600, .dark-mode .text-green-700, .dark-mode .text-green-800 {
+      color: #81C784 !important;
+    }
+    .dark-mode .bg-blue-50, .dark-mode .bg-blue-50/50 {
+      background-color: rgba(33, 150, 243, 0.1) !important;
+    }
+    .dark-mode .text-blue-600, .dark-mode .text-blue-700, .dark-mode .text-blue-800 {
+      color: #64B5F6 !important;
+    }
+    .dark-mode .bg-orange-100 {
+      background-color: rgba(255, 87, 34, 0.15) !important;
+    }
+    .dark-mode .bg-orange-50 {
+      background-color: rgba(255, 87, 34, 0.1) !important;
+    }
+    .dark-mode .text-orange-500, .dark-mode .text-orange-600 {
+      color: #FF7043 !important;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+  <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "Rescue Chef AI",
+  "description": "A smart kitchen assistant that helps you cook with what you have using intelligent substitutions and grocery store finding logic.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
