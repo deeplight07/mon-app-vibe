@@ -1,9 +1,52 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AppScreen, Recipe, SubstitutionHack, AppState, Ingredient, SafetyFactor } from './types';
 import { GeminiService } from './services/geminiService';
 import StoreList from './components/StoreList';
 import Timer from './components/Timer';
+
+const EMOJI_FALLBACK: Record<string, string> = {
+  thermometer: '🌡️',
+  shield: '🛡️',
+  lemon: '🍋',
+  fire: '🔥',
+  leaf: '🌿',
+  warning: '⚠️',
+  heart: '❤️',
+  chemical: '⚗️',
+  clock: '⏰',
+  salt: '🧂',
+  scale: '⚖️',
+  water: '💧',
+  egg: '🥚',
+  wheat: '🌾',
+  pepper: '🌶️',
+  check: '✅',
+  star: '⭐',
+  flask: '🧪',
+  herb: '🌿',
+  temperature: '🌡️',
+  bacteria: '🦠',
+  allergen: '⚠️',
+  nutrition: '🥗',
+  freshness: '🧊',
+  hygiene: '🧼',
+  cross: '⚠️',
+  contamination: '🦠',
+  cooking: '🍳',
+  acidity: '🍋',
+  poultry: '🍗',
+  meat: '🥩',
+  dairy: '🥛',
+};
+
+function resolveEmoji(raw: string): string {
+  if (!raw) return '📊';
+  // If it's already an emoji (non-ASCII), return as-is
+  if (/[^\u0000-\u007F]/.test(raw)) return raw;
+  // Otherwise look up the fallback map
+  const key = raw.toLowerCase().trim();
+  return EMOJI_FALLBACK[key] || '📊';
+}
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
@@ -70,6 +113,31 @@ const App: React.FC = () => {
     document.body.classList.toggle('dark-mode', theme === 'dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Bug Fix #2: Restore image when viewing recipe details if missing
+  useEffect(() => {
+    if (state.screen === AppScreen.RECIPE_DETAIL) {
+      const recipe = state.selectedCookbookRecipe || state.currentRecipe;
+      if (recipe && !recipe.imageUrl) {
+        GeminiService.generateRecipeImage(recipe.name).then(illustration => {
+          if (illustration) {
+            if (state.selectedCookbookRecipe && state.selectedCookbookRecipe.id === recipe.id) {
+              setState(prev => ({
+                ...prev,
+                selectedCookbookRecipe: { ...prev.selectedCookbookRecipe!, imageUrl: illustration },
+                cookbook: prev.cookbook.map(r => r.id === recipe.id ? { ...r, imageUrl: illustration } : r)
+              }));
+            } else if (state.currentRecipe && state.currentRecipe.id === recipe.id) {
+              setState(prev => ({
+                ...prev,
+                currentRecipe: { ...prev.currentRecipe!, imageUrl: illustration }
+              }));
+            }
+          }
+        }).catch(err => console.error("Image regen failed:", err));
+      }
+    }
+  }, [state.screen, state.selectedCookbookRecipe?.id, state.currentRecipe?.id]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -317,7 +385,7 @@ const App: React.FC = () => {
 
       <div className="space-y-4">
         <button onClick={() => fileInputRef.current?.click()} className="w-full primary-btn py-5 rounded-2xl flex items-center justify-center gap-3 font-bold text-lg shadow-xl active:scale-95 transition-all"><i className="fa-solid fa-camera"></i> Scan Pantry</button>
-        <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleScan} className="hidden" />
+        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleScan} className="hidden" />
 
         <div className="bg-white border rounded-2xl p-4 shadow-sm dark:bg-[#2D2D2D] dark:border-gray-800">
           <div className="flex justify-between items-center mb-3">
@@ -537,7 +605,7 @@ const App: React.FC = () => {
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {safeRecipe.safety_factors.map((f, i) => (
                 <div key={i} className="shrink-0 p-3 bg-gray-50 dark:bg-gray-800 rounded-2xl flex flex-col items-center min-w-[80px]">
-                  <span className="text-lg mb-1">{f.icon}</span>
+                  <span className="text-lg mb-1">{resolveEmoji(f.icon)}</span>
                   <span className="text-[9px] font-black uppercase text-gray-400 text-center">{f.name}</span>
                   <span className="text-xs font-black mt-1">{f.score}%</span>
                 </div>
