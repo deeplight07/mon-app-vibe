@@ -180,13 +180,37 @@ export class GeminiService {
   - 'servings': Standard serving size (integer).
   - 'totalTime': Total prep + cook time.
   - 'steps': Write steps for the ORIGINAL recipe. Do NOT mention substitutions in steps.
+
+  SAFETY FACTORS RULES:
+  Generate exactly 3 safety_factors that answer the user's real question: "Can I trust these substitutions?"
+  Each factor must use ONE of these predefined categories ONLY:
+
+  Category 1 - Taste Match:
+    name: "Taste Match"
+    icon: "🎯"
+    score: How close the final dish will taste to the original (0-100)
+
+  Category 2 - Swap Safety:  
+    name: "Swap Safety"
+    icon: "🛡️"
+    score: How safe the ingredient substitutions are, considering allergies, chemical reactions, and food safety (0-100)
+
+  Category 3 - Texture Match:
+    name: "Texture Match"
+    icon: "🧈"
+    score: How close the texture and consistency will be to the original recipe (0-100)
+
+  Do NOT invent other categories. Do NOT use technical food science jargon like "Oven Calibration", "Cross-Contamination", "Egg Safety", "Acidity Balance", or "Poultry Cooking Temp". Always use exactly these 3 categories with these exact names and icons.
+
+  If the recipe has NO substitutions (pure SHOP IT path), set all three scores to 100.
+
+  CRITICAL ICON RULE: Every safety_factors[].icon field MUST be a single Unicode emoji character. NEVER return the English name of an emoji. Always return the actual emoji glyph.
 `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Request: "${query}". Available Ingredients: ${userIngredients.join(', ')}. IMPORTANT: Return the ORIGINAL recipe ingredients in the ingredients list, not substituted versions.`,
       config: {
-        // Fix: Use thinkingBudget (tokens) instead of thinkingLevel (string) as per SDK rules.
         // Moderate budget for structured recipe reasoning.
         thinkingConfig: { thinkingBudget: 4096 },
         systemInstruction,
